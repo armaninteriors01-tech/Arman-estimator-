@@ -10,6 +10,10 @@
   <meta name="apple-mobile-web-app-title" content="Arman Estimator" />
   <meta name="application-name" content="Arman Estimator" />
 
+  <!-- jsPDF & AutoTable for Mobile PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
   <style>
     :root {
       --primary-green: #235c34;
@@ -47,7 +51,7 @@
     .btn-primary { background: var(--primary-green); color: #fff; }
     .btn-secondary { background: #39424e; color: #fff; }
     .btn-save { background: #1f7a8c; color: #fff; }
-    .btn-whatsapp { background: #25d366; color: #fff; font-size: 16px; padding: 12px 20px; }
+    .btn-pdf { background: #d93025; color: #fff; font-size: 15px; padding: 12px 20px; }
 
     .sheet-card {
       position: relative;
@@ -60,12 +64,12 @@
     }
     .watermark-overlay {
       position: absolute;
-      top: 50%;
+      top: 55%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 320px;
-      max-width: 75%;
-      opacity: 0.08;
+      width: 280px;
+      max-width: 70%;
+      opacity: 0.15;
       pointer-events: none;
       z-index: 1;
     }
@@ -73,6 +77,8 @@
       background: var(--header-bg);
       padding: 12px 14px;
       border-bottom: 2px solid var(--primary-green);
+      position: relative;
+      z-index: 2;
     }
     .project-title {
       font-size: 16px;
@@ -153,6 +159,8 @@
       padding: 14px;
       background: #fafafa;
       border-top: 1px solid #eee;
+      position: relative;
+      z-index: 2;
     }
     .modal {
       display: none;
@@ -185,7 +193,7 @@
 </head>
 <body>
 
-  <!-- Top Action Controls -->
+  <!-- Controls -->
   <div class="top-bar">
     <button class="btn btn-secondary" onclick="openSavedDrawer()">📁 Saved Bills</button>
     <div>
@@ -196,7 +204,7 @@
 
   <!-- Spreadsheet Card -->
   <div class="sheet-card">
-    <img src="logo.png" class="watermark-overlay" alt="Arman Interiors Watermark" />
+    <img src="logo.png" id="watermarkImg" class="watermark-overlay" alt="Arman Interiors Watermark" onerror="this.style.display='none'" onload="this.style.display='block'" />
 
     <div class="project-header">
       <div class="project-title">Arman Estimator & Billing Sheet</div>
@@ -231,13 +239,13 @@
     </div>
 
     <div class="footer-actions">
-      <button class="btn btn-whatsapp" onclick="shareViaWhatsApp()">
-        <span>↗ Share Estimate via WhatsApp</span>
+      <button class="btn btn-pdf" onclick="generateAndSharePDF()">
+        <span>📄 Download / Share PDF</span>
       </button>
     </div>
   </div>
 
-  <!-- Saved Bills Modal Drawer -->
+  <!-- Saved Bills Drawer -->
   <div id="savedModal" class="modal">
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -300,7 +308,7 @@
         const h = parseFloat(r.querySelector('.h-val').value) || 0;
         const w = parseFloat(r.querySelector('.w-val').value) || 0;
         
-        // Addition logic: Height (ft) + Width (ft)
+        // Addition logic: Height + Width
         const feet = (h > 0 || w > 0) ? (h + w) : 0;
         const amount = feet * rate;
 
@@ -318,17 +326,22 @@
     function collectBillData() {
       const rows = [];
       document.querySelectorAll('#tableBody tr').forEach(r => {
-        rows.push({
-          name: r.querySelector('.item-name').value,
-          h: r.querySelector('.h-val').value,
-          w: r.querySelector('.w-val').value,
-          feet: r.querySelector('.ft-val').innerText,
-          amount: r.querySelector('.amt-val').innerText
-        });
+        const h = r.querySelector('.h-val').value;
+        const w = r.querySelector('.w-val').value;
+        const name = r.querySelector('.item-name').value;
+        if (name && (h || w)) {
+          rows.push({
+            name: name,
+            h: h,
+            w: w,
+            feet: r.querySelector('.ft-val').innerText,
+            amount: r.querySelector('.amt-val').innerText
+          });
+        }
       });
       return {
         id: currentBillId || Date.now(),
-        client: document.getElementById('clientName').value || 'Unnamed Client',
+        client: document.getElementById('clientName').value || 'Client',
         date: document.getElementById('billDate').value,
         rate: document.getElementById('defaultRate').value,
         totalFeet: document.getElementById('grandFeet').innerText,
@@ -407,24 +420,106 @@
       document.getElementById('savedModal').style.display = 'none';
     }
 
-    function shareViaWhatsApp() {
+    async function generateAndSharePDF() {
       const data = collectBillData();
-      let text = `*ARMAN INTERIORS - ESTIMATE*\n`;
-      text += `Client: ${data.client}\nDate: ${data.date}\n`;
-      text += `--------------------------------\n`;
+      if (data.items.length === 0) {
+        alert("Please add measurements to at least one item before making a PDF.");
+        return;
+      }
 
-      data.items.forEach((it, i) => {
-        if (it.name && it.h && it.w) {
-          text += `${i + 1}. *${it.name}*: ${it.h} ft + ${it.w} ft = ${it.feet} ft (${it.amount})\n`;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+      // Header Banner
+      doc.setFillColor(35, 92, 52);
+      doc.rect(0, 0, 595, 75, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("ARMAN INTERIORS", 40, 42);
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("ESTIMATE & BILLING SHEET", 40, 60);
+
+      // Client Meta Info
+      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Client: ${data.client}`, 40, 105);
+      doc.text(`Date: ${data.date}`, 420, 105);
+      if (data.rate) {
+        doc.text(`Rate/Ft: Rs. ${data.rate}`, 40, 122);
+      }
+
+      // Items Data
+      const bodyRows = data.items.map((it, idx) => [
+        idx + 1,
+        it.name,
+        `${it.h} ft`,
+        `${it.w} ft`,
+        `${it.feet} ft`,
+        it.amount
+      ]);
+
+      // PDF Table
+      doc.autoTable({
+        startY: 135,
+        head: [['SL.', 'ITEM NAME', 'HEIGHT', 'WIDTH', 'TOTAL FEET', 'AMOUNT']],
+        body: bodyRows,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [35, 92, 52],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 40 },
+          1: { cellWidth: 180 },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'right', fontStyle: 'bold' },
+          5: { halign: 'right', fontStyle: 'bold' }
+        },
+        styles: {
+          fontSize: 10,
+          cellPadding: 7
         }
       });
 
-      text += `--------------------------------\n`;
-      text += `*TOTAL FEET:* ${data.totalFeet} ft\n`;
-      text += `*GRAND TOTAL:* ${data.grandTotal}\n\n`;
-      text += `Shared via Arman Estimator`;
+      // Total Footer Box
+      const finalY = doc.lastAutoTable.finalY + 15;
+      doc.setFillColor(240, 243, 240);
+      doc.rect(40, finalY, 515, 38, 'F');
+      doc.setDrawColor(35, 92, 52);
+      doc.rect(40, finalY, 515, 38, 'S');
 
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(35, 92, 52);
+      doc.text(`GRAND TOTAL FEET: ${data.totalFeet} ft`, 55, finalY + 24);
+      doc.text(`AMOUNT: ${data.grandTotal}`, 360, finalY + 24);
+
+      // Native Device Share (WhatsApp / Drive / Save)
+      const fileName = `Arman_Estimate_${data.client.replace(/\s+/g, '_')}.pdf`;
+      const pdfBlob = doc.output('blob');
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        try {
+          await navigator.share({
+            files: [pdfFile],
+            title: `Arman Interiors Estimate - ${data.client}`,
+            text: `Estimate for ${data.client} from Arman Interiors.`
+          });
+        } catch (err) {
+          doc.save(fileName);
+        }
+      } else {
+        doc.save(fileName);
+      }
     }
   </script>
 </body>

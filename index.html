@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arman Estimator</title>
+  
+  <!-- App Icon Setup: Place your logo image as 'logo.png' in the same folder -->
+  <link rel="apple-touch-icon" href="logo.png" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <meta name="apple-mobile-web-app-title" content="Arman Estimator" />
+  <meta name="application-name" content="Arman Estimator" />
+
+  <style>
+    :root {
+      --primary-green: #235c34;
+      --header-bg: #d7ebd6;
+      --border-color: #c0c0c0;
+    }
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 12px;
+      background: #f4f6f8;
+      color: #222;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+    .btn {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+    }
+    .btn-primary { background: var(--primary-green); color: #fff; }
+    .btn-secondary { background: #39424e; color: #fff; }
+    .btn-save { background: #1f7a8c; color: #fff; }
+    .btn-whatsapp { background: #25d366; color: #fff; font-size: 16px; padding: 12px 20px; }
+
+    .sheet-card {
+      position: relative;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    /* Light Watermark in the center */
+    .watermark-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      max-width: 75%;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .project-header {
+      background: var(--header-bg);
+      padding: 12px 14px;
+      border-bottom: 2px solid var(--primary-green);
+    }
+    .project-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #163e23;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .meta-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .meta-row input {
+      border: 1px solid #aaa;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      flex: 1;
+      min-width: 140px;
+      background: #fff;
+    }
+    .table-container {
+      overflow-x: auto;
+      position: relative;
+      z-index: 2;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 580px;
+    }
+    th {
+      background: var(--primary-green);
+      color: #fff;
+      padding: 10px 8px;
+      font-size: 13px;
+      text-align: center;
+      border: 1px solid #1c4b2b;
+    }
+    td {
+      border: 1px solid var(--border-color);
+      padding: 6px 8px;
+      font-size: 14px;
+      background: transparent;
+    }
+    td.sl-col {
+      width: 44px;
+      text-align: center;
+      font-weight: 700;
+      color: #555;
+    }
+    input.cell-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 14px;
+      padding: 3px 0;
+    }
+    input.num-input {
+      text-align: right;
+    }
+    .readonly-cell {
+      text-align: right;
+      font-weight: 600;
+      color: #111;
+    }
+    .totals-row td {
+      background: #eaeaea;
+      font-weight: 800;
+      font-size: 15px;
+      border-top: 2px solid #333;
+    }
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding: 14px;
+      background: #fafafa;
+      border-top: 1px solid #eee;
+    }
+    /* Saved Drawer Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.45);
+      z-index: 99;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: #fff;
+      width: 90%;
+      max-width: 480px;
+      border-radius: 8px;
+      padding: 16px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .bill-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    .bill-item:hover { background: #f0f7f2; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Controls -->
+  <div class="top-bar">
+    <button class="btn btn-secondary" onclick="openSavedDrawer()">📁 Saved Bills</button>
+    <div>
+      <button class="btn btn-save" onclick="saveCurrentBill()">💾 Save Bill</button>
+      <button class="btn btn-primary" onclick="newBlankBill()">➕ New Bill</button>
+    </div>
+  </div>
+
+  <!-- Spreadsheet Card -->
+  <div class="sheet-card">
+    <!-- Watermark Image (place logo.png in same folder) -->
+    <img src="logo.png" class="watermark-overlay" alt="Arman Interiors Watermark" />
+
+    <div class="project-header">
+      <div class="project-title">Arman Estimator & Billing Sheet</div>
+      <div class="meta-row">
+        <input type="text" id="clientName" placeholder="Client Name (e.g. Gupta Residence)" />
+        <input type="date" id="billDate" />
+        <input type="number" id="defaultRate" placeholder="Default Rate/SqFt (₹)" oninput="recalculate()" style="max-width:160px;" />
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table id="measureTable">
+        <thead>
+          <tr>
+            <th style="width: 44px;">SL.</th>
+            <th>ITEM NAME</th>
+            <th style="width: 95px;">HEIGHT (ft)</th>
+            <th style="width: 95px;">WIDTH (ft)</th>
+            <th style="width: 105px;">SQR FT</th>
+            <th style="width: 130px;">AMOUNT (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- Rows will be injected by JavaScript -->
+        </tbody>
+        <tfoot>
+          <tr class="totals-row">
+            <td colspan="4" style="text-align: right; padding-right: 12px;">GRAND TOTAL:</td>
+            <td id="grandSqFt" class="readonly-cell">0.00</td>
+            <td id="grandAmount" class="readonly-cell">₹ 0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn btn-whatsapp" onclick="shareViaWhatsApp()">
+        <span>↗ Share Estimate via WhatsApp</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Saved Bills Modal Drawer -->
+  <div id="savedModal" class="modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0;">Saved Bills</h3>
+        <button onclick="closeSavedDrawer()" style="border:none; background:none; font-size:20px; cursor:pointer;">✕</button>
+      </div>
+      <div id="savedList"></div>
+    </div>
+  </div>
+
+  <script>
+    const defaultItems = [
+      "Kitchen Top Unit",
+      "Kitchen Bottom Unit",
+      "MBR Wardrobe",
+      "KBR Wardrobe",
+      "GBR Wardrobe",
+      "TV Unit",
+      "Crockery Unit",
+      "Shoe Unit",
+      "Study Table",
+      "Dressing Table",
+      "", // Row 11 extra
+      "", // Row 12 extra
+      ""  // Row 13 extra
+    ];
+
+    let currentBillId = null;
+
+    window.onload = function() {
+      document.getElementById('billDate').value = new Date().toISOString().split('T')[0];
+      initSheet();
+    };
+
+    function initSheet(items = defaultItems) {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      items.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="sl-col">${index + 1}</td>
+          <td><input type="text" class="cell-input item-name" value="${item}" placeholder="Add extra furniture..." /></td>
+          <td><input type="number" step="0.01" class="cell-input num-input h-val" oninput="recalculate()" /></td>
+          <td><input type="number" step="0.01" class="cell-input num-input w-val" oninput="recalculate()" /></td>
+          <td class="readonly-cell sqft-val">0.00</td>
+          <td class="readonly-cell amt-val">0.00</td>
+        `;
+        tbody.appendChild(row);
+      });
+      recalculate();
+    }
+
+    function recalculate() {
+      const rows = document.querySelectorAll('#tableBody tr');
+      const rate = parseFloat(document.getElementById('defaultRate').value) || 0;
+      let totalSqFt = 0;
+      let totalAmount = 0;
+
+      rows.forEach(r => {
+        const h = parseFloat(r.querySelector('.h-val').value) || 0;
+        const w = parseFloat(r.querySelector('.w-val').value) || 0;
+        const sqft = h * w;
+        const amount = sqft * rate;
+
+        r.querySelector('.sqft-val').innerText = sqft > 0 ? sqft.toFixed(2) : '-';
+        r.querySelector('.amt-val').innerText = amount > 0 ? '₹ ' + amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
+
+        totalSqFt += sqft;
+        totalAmount += amount;
+      });
+
+      document.getElementById('grandSqFt').innerText = totalSqFt.toFixed(2);
+      document.getElementById('grandAmount').innerText = '₹ ' + totalAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function collectBillData() {
+      const rows = [];
+      document.querySelectorAll('#tableBody tr').forEach(r => {
+        rows.push({
+          name: r.querySelector('.item-name').value,
+          h: r.querySelector('.h-val').value,
+          w: r.querySelector('.w-val').value,
+          sqft: r.querySelector('.sqft-val').innerText,
+          amount: r.querySelector('.amt-val').innerText
+        });
+      });
+      return {
+        id: currentBillId || Date.now(),
+        client: document.getElementById('clientName').value || 'Unnamed Client',
+        date: document.getElementById('billDate').value,
+        rate: document.getElementById('defaultRate').value,
+        totalSqFt: document.getElementById('grandSqFt').innerText,
+        grandTotal: document.getElementById('grandAmount').innerText,
+        items: rows
+      };
+    }
+
+    function saveCurrentBill() {
+      const bill = collectBillData();
+      currentBillId = bill.id;
+      let bills = JSON.parse(localStorage.getItem('arman_bills') || '[]');
+      const index = bills.findIndex(b => b.id === bill.id);
+      if (index > -1) bills[index] = bill;
+      else bills.unshift(bill);
+      localStorage.setItem('arman_bills', JSON.stringify(bills));
+      alert('Estimate saved successfully!');
+    }
+
+    function newBlankBill() {
+      if (confirm('Start a new bill? Make sure to save the current one first.')) {
+        currentBillId = null;
+        document.getElementById('clientName').value = '';
+        document.getElementById('defaultRate').value = '';
+        initSheet();
+      }
+    }
+
+    function openSavedDrawer() {
+      const modal = document.getElementById('savedModal');
+      const list = document.getElementById('savedList');
+      const bills = JSON.parse(localStorage.getItem('arman_bills') || '[]');
+      list.innerHTML = bills.length === 0 ? '<p style="color:#777;">No saved estimates yet.</p>' : '';
+
+      bills.forEach(b => {
+        const item = document.createElement('div');
+        item.className = 'bill-item';
+        item.innerHTML = `
+          <div>
+            <strong>${b.client}</strong><br/>
+            <small style="color:#666;">${b.date} • ${b.totalSqFt} sq.ft</small>
+          </div>
+          <div><strong>${b.grandTotal}</strong></div>
+        `;
+        item.onclick = () => loadBill(b);
+        list.appendChild(item);
+      });
+      modal.style.display = 'flex';
+    }
+
+    function loadBill(bill) {
+      currentBillId = bill.id;
+      document.getElementById('clientName').value = bill.client;
+      document.getElementById('billDate').value = bill.date;
+      document.getElementById('defaultRate').value = bill.rate;
+
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      bill.items.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="sl-col">${index + 1}</td>
+          <td><input type="text" class="cell-input item-name" value="${item.name}" /></td>
+          <td><input type="number" step="0.01" class="cell-input num-input h-val" value="${item.h}" oninput="recalculate()" /></td>
+          <td><input type="number" step="0.01" class="cell-input num-input w-val" value="${item.w}" oninput="recalculate()" /></td>
+          <td class="readonly-cell sqft-val">${item.sqft}</td>
+          <td class="readonly-cell amt-val">${item.amount}</td>
+        `;
+        tbody.appendChild(row);
+      });
+      recalculate();
+      closeSavedDrawer();
+    }
+
+    function closeSavedDrawer() {
+      document.getElementById('savedModal').style.display = 'none';
+    }
+
+    function shareViaWhatsApp() {
+      const data = collectBillData();
+      let text = `*ARMAN INTERIORS - ESTIMATE*\n`;
+      text += `Client: ${data.client}\nDate: ${data.date}\n`;
+      text += `--------------------------------\n`;
+
+      data.items.forEach((it, i) => {
+        if (it.name && it.h && it.w) {
+          text += `${i + 1}. *${it.name}*: ${it.h} x ${it.w} = ${it.sqft} sq.ft (${it.amount})\n`;
+        }
+      });
+
+      text += `--------------------------------\n`;
+      text += `*TOTAL SQR FT:* ${data.totalSqFt}\n`;
+      text += `*GRAND TOTAL:* ${data.grandTotal}\n\n`;
+      text += `Shared via Arman Estimator`;
+
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  </script>
+</body>
+</html>

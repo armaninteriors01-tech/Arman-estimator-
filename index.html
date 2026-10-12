@@ -203,7 +203,7 @@
       <div class="meta-row">
         <input type="text" id="clientName" placeholder="Client Name (e.g. Gupta Residence)" />
         <input type="date" id="billDate" />
-        <input type="number" id="defaultRate" placeholder="Default Rate/SqFt (₹)" oninput="recalculate()" style="max-width:160px;" />
+        <input type="number" id="defaultRate" placeholder="Default Rate/Ft (₹)" oninput="recalculate()" style="max-width:160px;" />
       </div>
     </div>
 
@@ -213,9 +213,9 @@
           <tr>
             <th style="width: 44px;">SL.</th>
             <th>ITEM NAME</th>
-            <th style="width: 100px;">HEIGHT (in)</th>
-            <th style="width: 100px;">WIDTH (in)</th>
-            <th style="width: 105px;">SQR FT</th>
+            <th style="width: 100px;">HEIGHT (ft)</th>
+            <th style="width: 100px;">WIDTH (ft)</th>
+            <th style="width: 115px;">TOTAL FEET (ft)</th>
             <th style="width: 130px;">AMOUNT (₹)</th>
           </tr>
         </thead>
@@ -223,7 +223,7 @@
         <tfoot>
           <tr class="totals-row">
             <td colspan="4" style="text-align: right; padding-right: 12px;">GRAND TOTAL:</td>
-            <td id="grandSqFt" class="readonly-cell">0.00</td>
+            <td id="grandFeet" class="readonly-cell">0.00</td>
             <td id="grandAmount" class="readonly-cell">₹ 0.00</td>
           </tr>
         </tfoot>
@@ -282,7 +282,7 @@
           <td><input type="text" class="cell-input item-name" value="${item}" placeholder="Add extra furniture..." /></td>
           <td><input type="number" step="0.01" class="cell-input num-input h-val" oninput="recalculate()" /></td>
           <td><input type="number" step="0.01" class="cell-input num-input w-val" oninput="recalculate()" /></td>
-          <td class="readonly-cell sqft-val">0.00</td>
+          <td class="readonly-cell ft-val">0.00</td>
           <td class="readonly-cell amt-val">0.00</td>
         `;
         tbody.appendChild(row);
@@ -293,25 +293,25 @@
     function recalculate() {
       const rows = document.querySelectorAll('#tableBody tr');
       const rate = parseFloat(document.getElementById('defaultRate').value) || 0;
-      let totalSqFt = 0;
+      let totalFeet = 0;
       let totalAmount = 0;
 
       rows.forEach(r => {
         const h = parseFloat(r.querySelector('.h-val').value) || 0;
         const w = parseFloat(r.querySelector('.w-val').value) || 0;
         
-        // Accurate calculation for Inches: (Height x Width) / 144 = Square Feet
-        const sqft = (h > 0 && w > 0) ? ((h * w) / 144) : 0;
-        const amount = sqft * rate;
+        // Addition logic: Height (ft) + Width (ft)
+        const feet = (h > 0 || w > 0) ? (h + w) : 0;
+        const amount = feet * rate;
 
-        r.querySelector('.sqft-val').innerText = sqft > 0 ? sqft.toFixed(2) : '-';
+        r.querySelector('.ft-val').innerText = feet > 0 ? feet.toFixed(2) : '-';
         r.querySelector('.amt-val').innerText = amount > 0 ? '₹ ' + amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
 
-        totalSqFt += sqft;
+        totalFeet += feet;
         totalAmount += amount;
       });
 
-      document.getElementById('grandSqFt').innerText = totalSqFt.toFixed(2);
+      document.getElementById('grandFeet').innerText = totalFeet.toFixed(2);
       document.getElementById('grandAmount').innerText = '₹ ' + totalAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
 
@@ -322,7 +322,7 @@
           name: r.querySelector('.item-name').value,
           h: r.querySelector('.h-val').value,
           w: r.querySelector('.w-val').value,
-          sqft: r.querySelector('.sqft-val').innerText,
+          feet: r.querySelector('.ft-val').innerText,
           amount: r.querySelector('.amt-val').innerText
         });
       });
@@ -331,7 +331,7 @@
         client: document.getElementById('clientName').value || 'Unnamed Client',
         date: document.getElementById('billDate').value,
         rate: document.getElementById('defaultRate').value,
-        totalSqFt: document.getElementById('grandSqFt').innerText,
+        totalFeet: document.getElementById('grandFeet').innerText,
         grandTotal: document.getElementById('grandAmount').innerText,
         items: rows
       };
@@ -369,7 +369,7 @@
         item.innerHTML = `
           <div>
             <strong>${b.client}</strong><br/>
-            <small style="color:#666;">${b.date} • ${b.totalSqFt} sq.ft</small>
+            <small style="color:#666;">${b.date} • ${b.totalFeet} ft</small>
           </div>
           <div><strong>${b.grandTotal}</strong></div>
         `;
@@ -394,7 +394,7 @@
           <td><input type="text" class="cell-input item-name" value="${item.name}" /></td>
           <td><input type="number" step="0.01" class="cell-input num-input h-val" value="${item.h}" oninput="recalculate()" /></td>
           <td><input type="number" step="0.01" class="cell-input num-input w-val" value="${item.w}" oninput="recalculate()" /></td>
-          <td class="readonly-cell sqft-val">${item.sqft}</td>
+          <td class="readonly-cell ft-val">${item.feet}</td>
           <td class="readonly-cell amt-val">${item.amount}</td>
         `;
         tbody.appendChild(row);
@@ -415,12 +415,12 @@
 
       data.items.forEach((it, i) => {
         if (it.name && it.h && it.w) {
-          text += `${i + 1}. *${it.name}*: ${it.h}" x ${it.w}" = ${it.sqft} sq.ft (${it.amount})\n`;
+          text += `${i + 1}. *${it.name}*: ${it.h} ft + ${it.w} ft = ${it.feet} ft (${it.amount})\n`;
         }
       });
 
       text += `--------------------------------\n`;
-      text += `*TOTAL SQR FT:* ${data.totalSqFt}\n`;
+      text += `*TOTAL FEET:* ${data.totalFeet} ft\n`;
       text += `*GRAND TOTAL:* ${data.grandTotal}\n\n`;
       text += `Shared via Arman Estimator`;
 

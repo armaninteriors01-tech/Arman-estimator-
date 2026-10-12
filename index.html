@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Arman Estimator</title>
   
-  <!-- App Icon Setup: Place your logo image as 'logo.png' in the same folder -->
   <link rel="apple-touch-icon" href="logo.png" />
   <link rel="icon" type="image/png" href="logo.png" />
   <meta name="apple-mobile-web-app-title" content="Arman Estimator" />
@@ -59,7 +58,6 @@
       overflow: hidden;
       margin-bottom: 18px;
     }
-    /* Light Watermark in the center */
     .watermark-overlay {
       position: absolute;
       top: 50%;
@@ -156,7 +154,6 @@
       background: #fafafa;
       border-top: 1px solid #eee;
     }
-    /* Saved Drawer Modal */
     .modal {
       display: none;
       position: fixed;
@@ -199,7 +196,6 @@
 
   <!-- Spreadsheet Card -->
   <div class="sheet-card">
-    <!-- Watermark Image (place logo.png in same folder) -->
     <img src="logo.png" class="watermark-overlay" alt="Arman Interiors Watermark" />
 
     <div class="project-header">
@@ -217,15 +213,13 @@
           <tr>
             <th style="width: 44px;">SL.</th>
             <th>ITEM NAME</th>
-            <th style="width: 95px;">HEIGHT (ft)</th>
-            <th style="width: 95px;">WIDTH (ft)</th>
+            <th style="width: 100px;">HEIGHT (in)</th>
+            <th style="width: 100px;">WIDTH (in)</th>
             <th style="width: 105px;">SQR FT</th>
             <th style="width: 130px;">AMOUNT (₹)</th>
           </tr>
         </thead>
-        <tbody id="tableBody">
-          <!-- Rows will be injected by JavaScript -->
-        </tbody>
+        <tbody id="tableBody"></tbody>
         <tfoot>
           <tr class="totals-row">
             <td colspan="4" style="text-align: right; padding-right: 12px;">GRAND TOTAL:</td>
@@ -266,9 +260,9 @@
       "Shoe Unit",
       "Study Table",
       "Dressing Table",
-      "", // Row 11 extra
-      "", // Row 12 extra
-      ""  // Row 13 extra
+      "", 
+      "", 
+      ""  
     ];
 
     let currentBillId = null;
@@ -305,7 +299,9 @@
       rows.forEach(r => {
         const h = parseFloat(r.querySelector('.h-val').value) || 0;
         const w = parseFloat(r.querySelector('.w-val').value) || 0;
-        const sqft = h * w;
+        
+        // Accurate calculation for Inches: (Height x Width) / 144 = Square Feet
+        const sqft = (h > 0 && w > 0) ? ((h * w) / 144) : 0;
         const amount = sqft * rate;
 
         r.querySelector('.sqft-val').innerText = sqft > 0 ? sqft.toFixed(2) : '-';
@@ -419,7 +415,7 @@
 
       data.items.forEach((it, i) => {
         if (it.name && it.h && it.w) {
-          text += `${i + 1}. *${it.name}*: ${it.h} x ${it.w} = ${it.sqft} sq.ft (${it.amount})\n`;
+          text += `${i + 1}. *${it.name}*: ${it.h}" x ${it.w}" = ${it.sqft} sq.ft (${it.amount})\n`;
         }
       });
 
